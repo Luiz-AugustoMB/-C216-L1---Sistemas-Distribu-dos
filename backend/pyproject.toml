@@ -5,7 +5,7 @@ description = "Backend da aplicação"
 authors = [
     {name = "Luiz Augusto Moreira Barbosa",email = "luiz.augustombarbosa@gmail.com"}
 ]
-requires-python = "^3.11"
+requires-python = ">=3.11,<4.0"
 dependencies = [
     "fastapi (>=0.141.1,<0.142.0)",
     "uvicorn (>=0.52.4,<0.53.0)"
