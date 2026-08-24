@@ -1,5 +1,7 @@
 .PHONY: help install test lint format run clean
 
+BACKEND := backend
+
 PYTHON  := poetry run python
 PYTEST  := poetry run pytest
 UVICORN := poetry run uvicorn
@@ -15,20 +17,20 @@ help:
 	@echo "  make clean    - remove arquivos temporarios"
 
 install:
-	poetry install
+	cd $(BACKEND) && poetry install
 
 test:
-	$(PYTEST)
+	cd $(BACKEND) && $(PYTEST)
 
 lint:
-	$(RUFF) check .
+	cd $(BACKEND) && $(RUFF) check .
 
 format:
-	$(RUFF) format .
+	cd $(BACKEND) && $(RUFF) format .
 
 run:
-	$(UVICORN) main:app --reload
+	cd $(BACKEND) && $(UVICORN) main:app --reload
 
 clean:
-	find . -type d -name "__pycache__" -exec rm -rf {} +
-	find . -type d -name ".pytest_cache" -exec rm -rf {} +
+	find $(BACKEND) -name .venv -prune -o -type d -name "__pycache__" -exec rm -rf {} +
+	find $(BACKEND) -name .venv -prune -o -type d -name ".pytest_cache" -exec rm -rf {} +
