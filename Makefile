@@ -27,7 +27,7 @@ install:
 	cd $(BACKEND) && poetry install
 
 test:
-	cd $(BACKEND) && $(PYTEST)
+	cd $(BACKEND) && $(PYTEST) -v
 
 lint:
 	cd $(BACKEND) && $(RUFF) check .
