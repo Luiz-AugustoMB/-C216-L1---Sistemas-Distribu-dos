@@ -1,4 +1,4 @@
-.PHONY: help install test lint format run clean docker-build docker-up docker-down docker-logs docker-restart db-shell
+.PHONY: help install test test-unit test-integration lint format run clean docker-build docker-up docker-down docker-logs docker-restart db-shell
 
 BACKEND := backend
 
@@ -11,7 +11,9 @@ COMPOSE := docker compose
 help:
 	@echo "Comandos disponiveis:"
 	@echo "  make install        - instala dependencias"
-	@echo "  make test           - executa testes"
+	@echo "  make test           - executa todos os testes"
+	@echo "  make test-unit      - executa os testes unitarios"
+	@echo "  make test-integration - executa os testes de integracao"
 	@echo "  make lint           - verifica o codigo"
 	@echo "  make format         - formata o codigo"
 	@echo "  make run            - inicia o servidor"
@@ -28,6 +30,12 @@ install:
 
 test:
 	cd $(BACKEND) && $(PYTEST) -v
+
+test-unit:
+	cd $(BACKEND) && $(PYTEST) tests/unit -v
+
+test-integration:
+	cd $(BACKEND) && $(PYTEST) tests/integration -v
 
 lint:
 	cd $(BACKEND) && $(RUFF) check .

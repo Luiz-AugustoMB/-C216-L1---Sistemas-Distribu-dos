@@ -36,5 +36,11 @@ jobs:
       - name: Install dependencies
         run: poetry install --no-root
 
-      - name: Run tests
-        run: poetry run pytest -v
+      - name: Lint
+        run: poetry run ruff check .
+
+      - name: Unit tests
+        run: poetry run pytest tests/unit -v
+
+      - name: Integration tests
+        run: poetry run pytest tests/integration -v
