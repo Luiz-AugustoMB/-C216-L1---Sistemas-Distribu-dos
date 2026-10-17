@@ -1,0 +1,44 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    # Porta do host configurável (API_PORT no .env) para evitar conflito com
+    # outros serviços; dentro do container a API sempre escuta na 8000
+    ports:
+      - "${API_PORT:-8000}:8000"
+    environment:
+      # Dentro da rede do Compose o banco é o serviço "db", e não localhost;
+      # a porta aqui é a interna do container, independente de DB_PORT
+      DATABASE_URL: postgresql+psycopg://c216:c216@db:5432/c216
+    depends_on:
+      db:
+        # As migrations rodam na subida da API, então o banco precisa aceitar conexões
+        condition: service_healthy
+    networks:
+      - c216-network
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: c216
+      POSTGRES_PASSWORD: c216
+      POSTGRES_DB: c216
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U c216 -d c216"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - c216-network
+
+volumes:
+  db-data:
+
+networks:
+  c216-network:
+    driver: bridge
