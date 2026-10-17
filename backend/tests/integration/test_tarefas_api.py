@@ -142,6 +142,16 @@ def test_atualizar_parcialmente_titulo_vazio_retorna_422(client, tarefa):
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
 
+@pytest.mark.parametrize("campo", ["titulo", "concluida"])
+def test_atualizar_parcialmente_null_em_campo_obrigatorio_retorna_422(
+    client, tarefa, campo
+):
+    # Sem a validação, o null chegaria ao banco e violaria o NOT NULL (erro 500)
+    response = client.patch(f"/tarefas/{tarefa['id']}", json={campo: None})
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+    assert client.get(f"/tarefas/{tarefa['id']}").json() == tarefa
+
+
 # DELETE /tarefas/{id}
 
 
