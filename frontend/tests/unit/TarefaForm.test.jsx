@@ -7,7 +7,7 @@ import { TITULO_MAX } from "../../src/validation.js";
 describe("TarefaForm (cadastro)", () => {
 	it("envia os dados sem espaços nas pontas e limpa os campos", async () => {
 		const user = userEvent.setup();
-		const onSalvar = vi.fn();
+		const onSalvar = vi.fn().mockResolvedValue(true);
 		render(<TarefaForm onSalvar={onSalvar} />);
 
 		await user.type(screen.getByLabelText("Título"), "  Estudar Biome  ");
@@ -20,6 +20,28 @@ describe("TarefaForm (cadastro)", () => {
 		});
 		expect(screen.getByLabelText("Título")).toHaveValue("");
 		expect(screen.getByLabelText(/Descrição/)).toHaveValue("");
+	});
+
+	it("mantém os campos preenchidos quando o salvamento falha", async () => {
+		const user = userEvent.setup();
+		const onSalvar = vi.fn().mockResolvedValue(false);
+		render(<TarefaForm onSalvar={onSalvar} />);
+
+		await user.type(screen.getByLabelText("Título"), "Não pode sumir");
+		await user.type(screen.getByLabelText(/Descrição/), "nem isto");
+		await user.click(screen.getByRole("button", { name: "Adicionar tarefa" }));
+
+		expect(onSalvar).toHaveBeenCalledOnce();
+		expect(screen.getByLabelText("Título")).toHaveValue("Não pode sumir");
+		expect(screen.getByLabelText(/Descrição/)).toHaveValue("nem isto");
+	});
+
+	it("desabilita o envio quando recebe desabilitado", () => {
+		render(<TarefaForm desabilitado onSalvar={vi.fn()} />);
+
+		expect(
+			screen.getByRole("button", { name: "Adicionar tarefa" }),
+		).toBeDisabled();
 	});
 
 	it("envia descrição vazia como null", async () => {
@@ -117,6 +139,18 @@ describe("TarefaForm (edição)", () => {
 			titulo: "Alterada",
 			descricao: null,
 		});
+	});
+
+	it("bloqueia Cancelar e os campos sem tirar o foco quando desabilitado", () => {
+		render(<TarefaForm tarefa={tarefa} desabilitado onSalvar={vi.fn()} />);
+
+		expect(screen.getByRole("button", { name: "Cancelar" })).toBeDisabled();
+		expect(
+			screen.getByRole("button", { name: "Salvar alterações" }),
+		).toBeDisabled();
+		expect(screen.getByLabelText("Título")).toHaveAttribute("readonly");
+		expect(screen.getByLabelText(/Descrição/)).toHaveAttribute("readonly");
+		expect(screen.getByLabelText("Título")).not.toBeDisabled();
 	});
 
 	it("chama onCancelar ao clicar em Cancelar", async () => {

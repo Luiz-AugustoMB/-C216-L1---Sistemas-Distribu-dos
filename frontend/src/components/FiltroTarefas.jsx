@@ -1,4 +1,4 @@
-// Equivalente no frontend ao query parameter ?concluida= do GET /tarefas
+// Cada filtro vira uma chamada GET /tarefas?concluida= na TarefasPage
 export const FILTROS = [
 	{ valor: "todas", rotulo: "Todas" },
 	{ valor: "pendentes", rotulo: "Pendentes" },

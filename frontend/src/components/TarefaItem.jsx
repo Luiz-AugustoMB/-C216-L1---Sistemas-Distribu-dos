@@ -1,6 +1,7 @@
 export function TarefaItem({
 	tarefa,
 	emEdicao = false,
+	desabilitado = false,
 	onAlternar,
 	onEditar,
 	onRemover,
@@ -15,6 +16,7 @@ export function TarefaItem({
 			<input
 				type="checkbox"
 				checked={tarefa.concluida}
+				disabled={desabilitado}
 				onChange={() => onAlternar(tarefa.id)}
 				aria-label={`Concluída: ${tarefa.titulo}`}
 				className="mt-1 size-4 accent-indigo-600"
@@ -38,17 +40,19 @@ export function TarefaItem({
 			<div className="flex shrink-0 gap-1">
 				<button
 					type="button"
+					disabled={desabilitado}
 					onClick={() => onEditar(tarefa.id)}
 					aria-label={`Editar ${tarefa.titulo}`}
-					className="rounded-lg px-2 py-1 text-sm text-indigo-600 hover:bg-indigo-50"
+					className="rounded-lg px-2 py-1 text-sm text-indigo-600 hover:bg-indigo-50 disabled:opacity-50"
 				>
 					Editar
 				</button>
 				<button
 					type="button"
+					disabled={desabilitado}
 					onClick={() => onRemover(tarefa.id)}
 					aria-label={`Remover ${tarefa.titulo}`}
-					className="rounded-lg px-2 py-1 text-sm text-red-600 hover:bg-red-50"
+					className="rounded-lg px-2 py-1 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
 				>
 					Remover
 				</button>

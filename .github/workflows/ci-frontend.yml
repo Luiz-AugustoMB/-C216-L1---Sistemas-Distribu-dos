@@ -1,13 +1,18 @@
 name: CI - Frontend
 
+# O E2E sobe a stack inteira, então mudanças no backend e no Compose também o afetam
 on:
   push:
     paths:
       - "frontend/**"
+      - "backend/**"
+      - "docker-compose.yml"
       - ".github/workflows/ci-frontend.yml"
   pull_request:
     paths:
       - "frontend/**"
+      - "backend/**"
+      - "docker-compose.yml"
       - ".github/workflows/ci-frontend.yml"
 
 jobs:
@@ -79,6 +84,7 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
+      # O global-setup do Playwright sobe e derruba os três containers sozinho
       - name: E2E tests
         run: npm run test:e2e
 

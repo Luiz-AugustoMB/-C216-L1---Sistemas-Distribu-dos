@@ -8,7 +8,12 @@ import {
 } from "../validation.js";
 
 // Sem a prop "tarefa" cadastra uma nova; com ela, edita a existente
-export function TarefaForm({ tarefa, onSalvar, onCancelar }) {
+export function TarefaForm({
+	tarefa,
+	desabilitado = false,
+	onSalvar,
+	onCancelar,
+}) {
 	const editando = tarefa !== undefined;
 	const [titulo, setTitulo] = useState(tarefa?.titulo ?? "");
 	const [descricao, setDescricao] = useState(tarefa?.descricao ?? "");
@@ -26,7 +31,7 @@ export function TarefaForm({ tarefa, onSalvar, onCancelar }) {
 		}
 	}, [editando]);
 
-	function handleSubmit(evento) {
+	async function handleSubmit(evento) {
 		evento.preventDefault();
 
 		const novosErros = validarTarefa({ titulo, descricao });
@@ -36,9 +41,13 @@ export function TarefaForm({ tarefa, onSalvar, onCancelar }) {
 		}
 
 		// Descrição vazia vira null, como o campo opcional da API
-		onSalvar({ titulo: titulo.trim(), descricao: descricao.trim() || null });
+		const salvou = await onSalvar({
+			titulo: titulo.trim(),
+			descricao: descricao.trim() || null,
+		});
 
-		if (!editando) {
+		// Se a API falhar, mantém o que foi digitado para o usuário tentar de novo
+		if (salvou && !editando) {
 			setTitulo("");
 			setDescricao("");
 		}
@@ -67,6 +76,7 @@ export function TarefaForm({ tarefa, onSalvar, onCancelar }) {
 					id={tituloId}
 					type="text"
 					value={titulo}
+					readOnly={desabilitado}
 					onChange={(evento) => setTitulo(evento.target.value)}
 					aria-invalid={erros.titulo ? "true" : "false"}
 					aria-describedby={erros.titulo ? `${tituloId}-erro` : undefined}
@@ -101,6 +111,7 @@ export function TarefaForm({ tarefa, onSalvar, onCancelar }) {
 					id={descricaoId}
 					rows={3}
 					value={descricao}
+					readOnly={desabilitado}
 					onChange={(evento) => setDescricao(evento.target.value)}
 					aria-invalid={erros.descricao ? "true" : "false"}
 					aria-describedby={erros.descricao ? `${descricaoId}-erro` : undefined}
@@ -128,15 +139,17 @@ export function TarefaForm({ tarefa, onSalvar, onCancelar }) {
 				{editando && (
 					<button
 						type="button"
+						disabled={desabilitado}
 						onClick={onCancelar}
-						className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
+						className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-50"
 					>
 						Cancelar
 					</button>
 				)}
 				<button
 					type="submit"
-					className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+					disabled={desabilitado}
+					className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
 				>
 					{editando ? "Salvar alterações" : "Adicionar tarefa"}
 				</button>
