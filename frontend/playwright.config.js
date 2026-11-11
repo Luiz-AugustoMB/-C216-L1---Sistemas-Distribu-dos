@@ -1,25 +1,21 @@
 import process from "node:process";
 import { defineConfig, devices } from "@playwright/test";
-
-const PORT = 5173;
-const BASE_URL = `http://localhost:${PORT}`;
+import { FRONTEND_URL } from "./tests/e2e/ambiente.js";
 
 export default defineConfig({
 	testDir: "./tests/e2e",
-	fullyParallel: true,
+	// Os testes usam o mesmo banco e limpam as tarefas antes de cada um,
+	// então não podem rodar em paralelo
+	fullyParallel: false,
+	workers: 1,
 	forbidOnly: !!process.env.CI,
 	retries: process.env.CI ? 2 : 0,
 	reporter: [["list"], ["html", { open: "never" }]],
+	globalSetup: "./tests/e2e/global-setup.js",
 
 	use: {
-		baseURL: BASE_URL,
+		baseURL: FRONTEND_URL,
 		trace: "on-first-retry",
-	},
-
-	webServer: {
-		command: `npm run dev -- --port ${PORT} --strictPort`,
-		url: BASE_URL,
-		reuseExistingServer: !process.env.CI,
 	},
 
 	projects: [
