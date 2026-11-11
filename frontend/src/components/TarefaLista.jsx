@@ -3,6 +3,7 @@ import { TarefaItem } from "./TarefaItem.jsx";
 export function TarefaLista({
 	tarefas,
 	editandoId = null,
+	desabilitado = false,
 	onAlternar,
 	onEditar,
 	onRemover,
@@ -22,6 +23,7 @@ export function TarefaLista({
 					key={tarefa.id}
 					tarefa={tarefa}
 					emEdicao={tarefa.id === editandoId}
+					desabilitado={desabilitado}
 					onAlternar={onAlternar}
 					onEditar={onEditar}
 					onRemover={onRemover}
