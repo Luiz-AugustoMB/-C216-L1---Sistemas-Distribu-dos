@@ -1,4 +1,4 @@
-.PHONY: help install test test-unit test-integration lint format run clean docker-build docker-up docker-down docker-logs docker-restart up-build logs-api db-up db-shell db-upgrade db-downgrade db-migration db-current db-history
+.PHONY: help install test test-all test-unit test-integration lint format run clean docker-build docker-up docker-down docker-logs docker-restart up-build logs-api db-up db-shell db-upgrade db-downgrade db-migration db-current db-history
 
 BACKEND := backend
 FRONTEND := frontend
@@ -16,14 +16,24 @@ COMPOSE := docker compose
 -include .env
 API_PORT ?= 8000
 DB_PORT  ?= 5432
-export API_PORT DB_PORT
+VITE_API_URL ?= http://localhost:$(API_PORT)
+POSTGRES_USER     ?= c216
+POSTGRES_PASSWORD ?= c216
+POSTGRES_DB       ?= c216
+export API_PORT DB_PORT VITE_API_URL POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB
+
+# So no make run: exportar para todos faria os testes de CORS dependerem do .env
+ifdef CORS_ORIGINS
+run: export CORS_ORIGINS := $(CORS_ORIGINS)
+endif
 
 help:
 	@echo "Comandos disponiveis:"
 	@echo "  make install        - instala dependencias"
-	@echo "  make test           - executa todos os testes"
-	@echo "  make test-unit      - executa os testes unitarios"
-	@echo "  make test-integration - executa os testes de integracao"
+	@echo "  make test-all       - instala tudo e executa TODOS os testes: backend, frontend e E2E (requer Docker)"
+	@echo "  make test           - executa os testes do backend"
+	@echo "  make test-unit      - executa os testes unitarios do backend"
+	@echo "  make test-integration - executa os testes de integracao do backend"
 	@echo "  make lint           - verifica o codigo"
 	@echo "  make format         - formata o codigo"
 	@echo "  make run            - inicia o servidor (requer o banco: make db-up)"
@@ -40,7 +50,7 @@ help:
 	@echo "  make front-test     - executa os testes unitarios e de integracao (Vitest)"
 	@echo "  make front-test-unit - executa apenas os testes unitarios do frontend"
 	@echo "  make front-test-integration - executa apenas os testes de integracao do frontend"
-	@echo "  make front-test-e2e - executa os testes E2E (Playwright)"
+	@echo "  make front-test-e2e - sobe uma stack isolada no Docker e executa os testes E2E (Playwright)"
 	@echo "  make docker-build   - constroi as imagens docker"
 	@echo "  make docker-up      - sobe os containers em background"
 	@echo "  make docker-down    - para e remove os containers"
@@ -57,7 +67,11 @@ help:
 	@echo "  make db-history     - mostra o historico de migrations"
 
 install:
-	cd $(BACKEND) && poetry install
+	cd $(BACKEND) && poetry install --no-root
+
+# Parte de um ambiente limpo: instala as dependencias e o Chromium, e o E2E sobe
+# os containers sozinho. Para na primeira etapa que falhar, da mais rapida para a mais lenta
+test-all: install front-install front-e2e-install test front-test front-test-e2e
 
 test:
 	cd $(BACKEND) && $(PYTEST) -v
@@ -83,8 +97,9 @@ clean:
 
 .PHONY: front-install front-e2e-install front-dev front-build front-preview front-lint front-format front-format-check front-check front-test front-test-unit front-test-integration front-test-e2e
 
+# npm ci instala exatamente o package-lock.json, sem reescrever o arquivo
 front-install:
-	cd $(FRONTEND) && $(NPM) install
+	cd $(FRONTEND) && $(NPM) ci
 
 front-e2e-install:
 	cd $(FRONTEND) && npx playwright install chromium
@@ -146,7 +161,7 @@ db-up:
 	$(COMPOSE) up -d db
 
 db-shell:
-	$(COMPOSE) exec db psql -U c216 -d c216
+	$(COMPOSE) exec db psql -U $(POSTGRES_USER) -d $(POSTGRES_DB)
 
 # Os comandos db-* abaixo rodam fora do container e usam o banco publicado em
 # localhost:$(DB_PORT) (padrao de app/core/config.py); suba-o antes com make db-up.
