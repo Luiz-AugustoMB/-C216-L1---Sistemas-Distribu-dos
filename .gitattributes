@@ -1,0 +1,3 @@
+# O Biome exige LF; sem isto, o autocrlf do Windows grava CRLF no checkout do
+# frontend e o npm run check falha localmente, embora passe na CI
+frontend/** text=auto eol=lf
