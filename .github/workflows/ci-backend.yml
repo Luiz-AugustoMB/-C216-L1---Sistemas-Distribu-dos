@@ -1,0 +1,76 @@
+name: CI - Backend
+
+on:
+  push:
+    branches: [projeto-final]
+    paths:
+      - "backend/**"
+      - "Makefile"
+      - ".github/workflows/ci-backend.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "Makefile"
+      - ".github/workflows/ci-backend.yml"
+
+# Um push novo na mesma branch cancela a execução anterior, que já ficou desatualizada
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Ruff
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixa o código
+        uses: actions/checkout@v4
+
+      # O cache "poetry" do setup-python consulta o Poetry para achar a pasta de cache,
+      # então ele precisa estar instalado antes. A versão é a mesma que gerou o lock.
+      - name: Instala o Poetry
+        run: pipx install poetry==2.4.1
+
+      - name: Configura o Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: poetry
+          cache-dependency-path: backend/poetry.lock
+
+      - name: Instala as dependências
+        run: make install
+
+      - name: Lint e formatação
+        run: make check
+
+  test:
+    name: Pytest
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixa o código
+        uses: actions/checkout@v4
+
+      - name: Instala o Poetry
+        run: pipx install poetry==2.4.1
+
+      - name: Configura o Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: poetry
+          cache-dependency-path: backend/poetry.lock
+
+      - name: Instala as dependências
+        run: make install
+
+      - name: Testes unitários
+        run: make test-unit
+
+      - name: Testes de integração
+        run: make test-integration
