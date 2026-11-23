@@ -1,5 +1,6 @@
 BACKEND_DIR := backend
 POETRY := poetry
+PYTEST := $(POETRY) run pytest
 APP := app.main:app
 HOST := 127.0.0.1
 PORT := 8000
@@ -8,12 +9,12 @@ SERVICE ?=
 
 .DEFAULT_GOAL := help
 
-.PHONY: help install run lint format format-check check clean \
+.PHONY: help install run lint format format-check check test test-unit test-integration clean \
 	env up down build restart ps logs db-shell api-shell reset
 
 help: ## Lista os comandos disponíveis
 	@grep -E '^[a-zA-Z_-]+:.*## ' "$(firstword $(MAKEFILE_LIST))" | \
-		awk 'BEGIN {FS = ":.*## "}; {printf "  %-14s %s\n", $$1, $$2}'
+		awk 'BEGIN {FS = ":.*## "}; {printf "  %-18s %s\n", $$1, $$2}'
 
 install: ## Instala as dependências do backend
 	cd "$(BACKEND_DIR)" && $(POETRY) install
@@ -32,9 +33,18 @@ format-check: ## Verifica a formatação sem alterar os arquivos
 
 check: lint format-check ## Roda lint e verificação de formatação
 
-clean: ## Remove caches do Python e do ruff
+test: ## Roda todos os testes do projeto
+	cd "$(BACKEND_DIR)" && $(PYTEST)
+
+test-unit: ## Roda só os testes unitários do backend
+	cd "$(BACKEND_DIR)" && $(PYTEST) tests/unit
+
+test-integration: ## Roda só os testes de integração do backend
+	cd "$(BACKEND_DIR)" && $(PYTEST) tests/integration
+
+clean: ## Remove caches do Python, do ruff e do pytest
 	find "$(BACKEND_DIR)" -path "$(BACKEND_DIR)/.venv" -prune -o -type d -name __pycache__ -exec rm -rf {} +
-	rm -rf "$(BACKEND_DIR)/.ruff_cache"
+	rm -rf "$(BACKEND_DIR)/.ruff_cache" "$(BACKEND_DIR)/.pytest_cache"
 
 env: ## Cria o .env a partir do .env.example, se ainda não existir
 	@if [ -f .env ]; then echo ".env encontrado, nada foi alterado"; \
