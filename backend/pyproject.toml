@@ -20,8 +20,15 @@ build-backend = "poetry.core.masonry.api"
 
 [dependency-groups]
 dev = [
-    "ruff (>=0.17.5,<0.18.0)"
+    "ruff (>=0.17.5,<0.18.0)",
+    "pytest (>=9.2.0,<10.0.0)",
+    "httpx (>=0.28.1,<0.29.0)"
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Deixa o "app" importável nos testes sem instalar o projeto como pacote
+pythonpath = ["."]
 
 [tool.ruff]
 target-version = "py311"
