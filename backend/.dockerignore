@@ -1,0 +1,9 @@
+# O .venv local é do Windows e não funciona na imagem Linux
+.venv/
+__pycache__/
+*.py[cod]
+.ruff_cache/
+.pytest_cache/
+.env
+Dockerfile
+.dockerignore
