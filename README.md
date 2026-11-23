@@ -24,7 +24,7 @@ fila e mostrar um painel com indicadores de uso do acervo.
 
 - [x] 1. Repositório, Poetry e Makefile
 - [x] 2. Docker (Dockerfile do backend e compose com PostgreSQL)
-- [ ] 3. Testes e CI (Pytest e GitHub Actions)
+- [x] 3. Testes e CI (Pytest e GitHub Actions)
 - [ ] 4. Persistência (SQLAlchemy e Alembic)
 - [ ] 5. API e regras de negócio (FastAPI)
 - [ ] 6. Frontend (React, Vite, Tailwind, Biome)
@@ -86,26 +86,64 @@ O PostgreSQL só usa `POSTGRES_USER`, `POSTGRES_PASSWORD` e `POSTGRES_DB` na pri
 que sobe, quando cria o volume. Para trocar algum deles depois, rode `make reset`, que
 apaga os dados, e `make up` de novo.
 
+## Testes
+
+Os testes do backend ficam em `backend/tests/` e usam Pytest:
+
+- `unit/`: chamam as funções direto, sem HTTP nem servidor.
+- `integration/`: fazem requisições à aplicação pelo `TestClient` do FastAPI e conferem
+  status, corpo e cabeçalhos da resposta.
+
+A fixture `client`, em `backend/tests/conftest.py`, é compartilhada pelos testes de
+integração.
+
+```bash
+make test               # todos os testes do projeto
+make test-unit          # só os unitários
+make test-integration   # só os de integração
+```
+
+Por enquanto só existem testes da rota `/health`. Os das regras de negócio entram na
+Etapa 5.
+
+## Integração contínua
+
+O workflow `.github/workflows/ci-backend.yml` roda no GitHub Actions a cada push na branch
+`projeto-final` e em pull requests para `main`. Ele só dispara quando a mudança mexe em
+`backend/`, no `Makefile` ou no próprio workflow.
+
+São dois jobs:
+
+- `Ruff`: roda `make check`.
+- `Pytest`: só começa se o `Ruff` passar. Roda `make test-unit` e `make test-integration`
+  em steps separados.
+
+Os jobs chamam os mesmos alvos do Makefile usados na máquina local, então o CI roda
+exatamente os mesmos comandos que rodam aqui.
+
 ## Comandos
 
 ```
 $ make help
-  help           Lista os comandos disponíveis
-  install        Instala as dependências do backend
-  run            Sobe a API com reload na porta PORT
-  lint           Verifica o código com ruff check
-  format         Formata o código com ruff format
-  format-check   Verifica a formatação sem alterar os arquivos
-  check          Roda lint e verificação de formatação
-  clean          Remove caches do Python e do ruff
-  env            Cria o .env a partir do .env.example, se ainda não existir
-  up             Faz o build e sobe os serviços em segundo plano
-  down           Derruba os serviços (os dados do banco ficam no volume)
-  build          Faz só o build das imagens
-  restart        Derruba e sobe os serviços de novo
-  ps             Mostra o estado e a saúde dos serviços
-  logs           Acompanha os logs (SERVICE=backend ou SERVICE=db para um só)
-  db-shell       Abre o psql no container do banco
-  api-shell      Abre um shell no container do backend
-  reset          Derruba os serviços e APAGA o volume com todos os dados do banco
+  help               Lista os comandos disponíveis
+  install            Instala as dependências do backend
+  run                Sobe a API com reload na porta PORT
+  lint               Verifica o código com ruff check
+  format             Formata o código com ruff format
+  format-check       Verifica a formatação sem alterar os arquivos
+  check              Roda lint e verificação de formatação
+  test               Roda todos os testes do projeto
+  test-unit          Roda só os testes unitários do backend
+  test-integration   Roda só os testes de integração do backend
+  clean              Remove caches do Python, do ruff e do pytest
+  env                Cria o .env a partir do .env.example, se ainda não existir
+  up                 Faz o build e sobe os serviços em segundo plano
+  down               Derruba os serviços (os dados do banco ficam no volume)
+  build              Faz só o build das imagens
+  restart            Derruba e sobe os serviços de novo
+  ps                 Mostra o estado e a saúde dos serviços
+  logs               Acompanha os logs (SERVICE=backend ou SERVICE=db para um só)
+  db-shell           Abre o psql no container do banco
+  api-shell          Abre um shell no container do backend
+  reset              Derruba os serviços e APAGA o volume com todos os dados do banco
 ```
