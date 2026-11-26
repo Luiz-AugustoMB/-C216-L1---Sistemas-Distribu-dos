@@ -1,6 +1,16 @@
+# As variáveis do .env viram variáveis do make; sem o arquivo (no CI), nada é lido
+-include .env
+
+# Fora do Docker o banco é acessado pela porta publicada no localhost. Com ?=, uma
+# DATABASE_URL já definida no ambiente (a do CI) tem prioridade
+DB_PORT ?= 5432
+DATABASE_URL ?= postgresql+psycopg://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@localhost:$(DB_PORT)/$(POSTGRES_DB)
+export DATABASE_URL
+
 BACKEND_DIR := backend
 POETRY := poetry
 PYTEST := $(POETRY) run pytest
+ALEMBIC := $(POETRY) run alembic
 APP := app.main:app
 HOST := 127.0.0.1
 PORT := 8000
@@ -10,7 +20,8 @@ SERVICE ?=
 .DEFAULT_GOAL := help
 
 .PHONY: help install run lint format format-check check test test-unit test-integration clean \
-	env up down build restart ps logs db-shell api-shell reset
+	env up down build restart ps logs db-shell api-shell reset \
+	db-up migrate migrate-down migration
 
 help: ## Lista os comandos disponíveis
 	@grep -E '^[a-zA-Z_-]+:.*## ' "$(firstword $(MAKEFILE_LIST))" | \
@@ -33,13 +44,14 @@ format-check: ## Verifica a formatação sem alterar os arquivos
 
 check: lint format-check ## Roda lint e verificação de formatação
 
-test: ## Roda todos os testes do projeto
+test: db-up ## Sobe o banco e roda todos os testes do projeto
 	cd "$(BACKEND_DIR)" && $(PYTEST)
 
 test-unit: ## Roda só os testes unitários do backend
 	cd "$(BACKEND_DIR)" && $(PYTEST) tests/unit
 
-test-integration: ## Roda só os testes de integração do backend
+# Não sobe o banco: no CI ele vem do service do GitHub Actions. Localmente, rode make db-up antes
+test-integration: ## Roda só os testes de integração do backend (precisam do banco no ar)
 	cd "$(BACKEND_DIR)" && $(PYTEST) tests/integration
 
 clean: ## Remove caches do Python, do ruff e do pytest
@@ -77,3 +89,18 @@ api-shell: ## Abre um shell no container do backend
 
 reset: ## Derruba os serviços e APAGA o volume com todos os dados do banco
 	$(COMPOSE) down -v
+
+db-up: ## Sobe só o banco e espera ele ficar saudável
+	$(COMPOSE) up -d --wait db
+
+migrate: db-up ## Aplica as migrations pendentes no banco do compose
+	cd "$(BACKEND_DIR)" && $(ALEMBIC) upgrade head
+
+migrate-down: db-up ## Desfaz a última migration aplicada
+	cd "$(BACKEND_DIR)" && $(ALEMBIC) downgrade -1
+
+# A descrição é conferida antes de subir o banco, para o erro aparecer na hora
+migration: ## Gera uma migration por autogenerate (MSG="descricao")
+	@if [ -z "$(MSG)" ]; then echo 'Faltou a descricao: make migration MSG="descricao"'; exit 1; fi
+	$(COMPOSE) up -d --wait db
+	cd "$(BACKEND_DIR)" && $(ALEMBIC) revision --autogenerate -m "$(MSG)"
