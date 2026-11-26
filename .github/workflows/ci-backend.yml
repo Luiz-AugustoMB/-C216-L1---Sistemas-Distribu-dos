@@ -52,6 +52,24 @@ jobs:
     name: Pytest
     needs: lint
     runs-on: ubuntu-latest
+    # Banco descartável só para os testes: some quando o job termina
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: acervo
+          POSTGRES_PASSWORD: acervo-ci
+          POSTGRES_DB: acervo_teste
+        ports:
+          - 5432:5432
+        # O job só começa depois que o PostgreSQL aceita conexões
+        options: >-
+          --health-cmd "pg_isready -U acervo -d acervo_teste"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg://acervo:acervo-ci@localhost:5432/acervo_teste
     steps:
       - name: Baixa o código
         uses: actions/checkout@v4
