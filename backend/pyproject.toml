@@ -8,7 +8,11 @@ authors = [
 requires-python = ">=3.11,<3.12"
 dependencies = [
     "fastapi (>=0.163.1,<0.164.0)",
-    "uvicorn[standard] (>=0.54.0,<0.55.0)"
+    "uvicorn[standard] (>=0.54.0,<0.55.0)",
+    "sqlalchemy (>=2.1.9,<3.0.0)",
+    "alembic (>=1.20.1,<2.0.0)",
+    "psycopg[binary] (>=3.3.9,<4.0.0)",
+    "pydantic-settings (>=2.16.3,<3.0.0)"
 ]
 
 [tool.poetry]
@@ -37,3 +41,7 @@ line-length = 100
 [tool.ruff.lint]
 # E/F: erros básicos, I: ordem dos imports, UP: sintaxe moderna, B: bugs comuns
 select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.isort]
+# Sem isto, a pasta alembic/ das migrations faz o pacote alembic parecer código do projeto
+known-third-party = ["alembic"]
