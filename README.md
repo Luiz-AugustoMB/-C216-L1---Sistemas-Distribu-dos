@@ -27,7 +27,7 @@ fila e mostrar um painel com indicadores de uso do acervo.
 - [x] 3. Testes e CI (Pytest e GitHub Actions)
 - [x] 4. Persistência (SQLAlchemy e Alembic)
 - [x] 5. API e regras de negócio (FastAPI)
-- [ ] 6. Frontend (React, Vite, Tailwind, Biome)
+- [x] 6. Frontend (React, Vite, Tailwind, Biome)
 - [ ] 7. Integração, E2E e fechamento
 
 ## Como rodar
@@ -72,6 +72,28 @@ Antes de subir a API, o container do backend aplica as migrations pendentes
 Se as portas 8000 ou 5432 já estiverem em uso, basta trocar `API_PORT` e `DB_PORT` no
 `.env`.
 
+## Frontend em desenvolvimento
+
+Pré-requisitos: Node.js LTS e a API no ar (`make up`).
+
+```bash
+make front-install  # instala as dependências exatas do package-lock.json
+make front-dev      # abre em http://localhost:5173
+```
+
+O frontend chama a API no endereço de `VITE_API_URL`, lido do `.env` da raiz. A API só
+aceita chamadas das origens listadas em `CORS_ORIGINS`, que por padrão é
+`http://localhost:5173`. Se trocar a `API_PORT`, ajuste também a `VITE_API_URL`.
+
+As telas são Livros, Leitores, Empréstimos, Reservas e Painel. O endereço de cada uma fica
+no hash da URL (`#/livros`, `#/reservas`...), então recarregar a página mantém a tela.
+
+```bash
+make front-check  # Biome: lint, formatação e ordem dos imports
+make front-test   # Vitest
+make front-build  # build de produção em frontend/dist
+```
+
 ## Variáveis de ambiente
 
 O `.env` é criado pelo `make env` e não vai para o repositório.
@@ -83,6 +105,8 @@ O `.env` é criado pelo `make env` e não vai para o repositório.
 | `POSTGRES_DB` | Nome do banco | `acervo` |
 | `API_PORT` | Porta da API no host | `8000` |
 | `DB_PORT` | Porta do PostgreSQL no host | `5432` |
+| `CORS_ORIGINS` | Origens do frontend que podem chamar a API, separadas por vírgula | `http://localhost:5173` |
+| `VITE_API_URL` | Endereço da API usado pelo frontend no navegador | `http://localhost:8000` |
 
 O backend lê a conexão da variável `DATABASE_URL`, montada a partir dessas variáveis:
 
@@ -216,6 +240,10 @@ São dois jobs:
   um banco de teste descartável, e roda `make test-unit` e `make test-integration` em steps
   separados.
 
+O `.github/workflows/ci-frontend.yml` segue o mesmo modelo para `frontend/`, com os jobs
+`Biome` (`make front-check`), `Vitest` (`make front-test`) e `Build` (`make front-build`),
+um depois do outro.
+
 Os jobs chamam os mesmos alvos do Makefile usados na máquina local, então o CI roda
 exatamente os mesmos comandos que rodam aqui.
 
@@ -230,7 +258,7 @@ $ make help
   format             Formata o código com ruff format
   format-check       Verifica a formatação sem alterar os arquivos
   check              Roda lint e verificação de formatação
-  test               Sobe o banco de testes e roda todos os testes do projeto
+  test               Sobe o banco de testes e roda todos os testes do backend e do frontend
   test-unit          Roda só os testes unitários do backend
   test-integration   Roda só os testes de integração do backend (precisam do banco no ar)
   clean              Remove caches do Python, do ruff e do pytest
@@ -247,6 +275,13 @@ $ make help
   db-up              Sobe só o banco e espera ele ficar saudável
   db-teste           Cria o banco dos testes locais no PostgreSQL do compose, se ainda não existir
   seed               Cadastra livros e leitores de exemplo no container (só se o banco estiver vazio)
+  front-install      Instala as dependências do frontend (npm ci)
+  front-dev          Sobe o frontend em desenvolvimento em http://localhost:5173
+  front-lint         Verifica o código do frontend com o Biome
+  front-format       Formata o código do frontend com o Biome
+  front-check        Roda lint, formatação e ordem dos imports do frontend sem alterar arquivos
+  front-test         Roda os testes do frontend (Vitest)
+  front-build        Gera o build de produção do frontend em frontend/dist
   migrate            Aplica as migrations pendentes no banco do compose
   migrate-down       Desfaz a última migration aplicada
   migration          Gera uma migration por autogenerate (MSG="descricao")
