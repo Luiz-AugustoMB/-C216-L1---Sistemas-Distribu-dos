@@ -1,4 +1,4 @@
-from app.main import health
+from app.api.routes.health import health
 
 
 def test_health_retorna_status_ok():
