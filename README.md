@@ -26,7 +26,7 @@ fila e mostrar um painel com indicadores de uso do acervo.
 - [x] 2. Docker (Dockerfile do backend e compose com PostgreSQL)
 - [x] 3. Testes e CI (Pytest e GitHub Actions)
 - [x] 4. Persistência (SQLAlchemy e Alembic)
-- [ ] 5. API e regras de negócio (FastAPI)
+- [x] 5. API e regras de negócio (FastAPI)
 - [ ] 6. Frontend (React, Vite, Tailwind, Biome)
 - [ ] 7. Integração, E2E e fechamento
 
@@ -36,6 +36,7 @@ Pré-requisitos: Python 3.11, Poetry e Make.
 
 ```bash
 make install
+make migrate   # sobe o PostgreSQL do compose e cria as tabelas
 make run
 ```
 
@@ -54,7 +55,11 @@ Pré-requisito: Docker Desktop em execução.
 make env   # cria o .env a partir do .env.example
 make up    # faz o build e sobe o banco e a API
 make ps    # db e backend devem aparecer como healthy
+make seed  # opcional: cadastra livros e leitores de exemplo
 ```
+
+O `make seed` só grava quando não há nenhum livro nem leitor, então pode ser rodado de novo
+sem duplicar nada.
 
 Com os serviços no ar:
 
@@ -128,29 +133,75 @@ make migration MSG="descricao"  # gera uma migration nova a partir dos models
 Toda migration gerada por autogenerate precisa ser revisada antes do commit: o Alembic não
 percebe tudo (por exemplo, a troca do nome de uma coluna vira remoção e criação).
 
+## API
+
+A documentação completa, com os campos de cada requisição e resposta, fica em `/docs`.
+
+| Recurso | Endpoints |
+|---|---|
+| Livros | `GET /livros` (`busca`, `disponivel`), `GET /livros/{id}`, `POST /livros`, `PUT /livros/{id}`, `PATCH /livros/{id}`, `DELETE /livros/{id}` |
+| Leitores | `GET /leitores` (`busca`), `GET /leitores/{id}`, `GET /leitores/{id}/emprestimos`, `POST /leitores`, `PUT /leitores/{id}`, `PATCH /leitores/{id}`, `DELETE /leitores/{id}` |
+| Empréstimos | `GET /emprestimos` (`status`, `livro_id`, `leitor_id`), `GET /emprestimos/{id}`, `POST /emprestimos`, `POST /emprestimos/{id}/devolucao`, `POST /emprestimos/{id}/renovacao` |
+| Reservas | `GET /reservas` (`livro_id`, `leitor_id`, `status`), `POST /reservas`, `DELETE /reservas/{id}` (cancela) |
+| Painel | `GET /painel` |
+
+Respostas: 201 na criação, 204 na exclusão e no cancelamento, 404 quando o registro não
+existe, 409 quando uma regra impede a operação e 422 quando os dados enviados são inválidos.
+Nos erros 404 e 409 o corpo é `{"detail": "<mensagem para o usuário>"}`.
+
+## Regras de negócio
+
+- O empréstimo dura 14 dias.
+- Um leitor pode ficar com até 3 livros ao mesmo tempo.
+- Quem tem livro atrasado não pega outro até devolver.
+- Ninguém pega dois exemplares do mesmo livro.
+- No dia da data prevista o empréstimo ainda está em dia; no dia seguinte fica atrasado.
+- Dá para renovar por mais 14 dias, até 2 vezes, se o empréstimo não estiver atrasado e
+  ninguém estiver esperando pelo livro.
+- Só entra na fila de reserva quem quer um livro sem nenhum exemplar livre.
+- A fila segue a ordem dos pedidos.
+- Quando um exemplar volta, ele fica separado para o primeiro da fila, que tem 2 dias para
+  retirar. Depois disso a reserva expira e o exemplar passa para o próximo.
+- Cancelar uma reserva que já tinha exemplar separado passa o exemplar para o próximo da
+  fila.
+- Exemplares novos de um livro vão primeiro para quem está na fila.
+- A quantidade de exemplares não pode ficar abaixo dos que estão emprestados ou separados.
+- Livro ou leitor com algum empréstimo ou reserva no histórico não pode ser excluído.
+- O ISBN é guardado só com os dígitos, então o mesmo livro com e sem hífen conta como um
+  só. O e-mail do leitor é guardado em minúsculas.
+- A data de hoje segue o fuso de São Paulo.
+
+Prazos e limites ficam no `Settings` (`backend/app/core/config.py`) e podem ser trocados
+por variável de ambiente: `PRAZO_EMPRESTIMO_DIAS`, `MAX_EMPRESTIMOS_ATIVOS`,
+`MAX_RENOVACOES`, `PRAZO_RETIRADA_RESERVA_DIAS` e `FUSO_HORARIO`.
+
 ## Testes
 
 Os testes do backend ficam em `backend/tests/` e usam Pytest:
 
-- `unit/`: chamam as funções direto, sem HTTP, servidor nem banco.
-- `integration/`: fazem requisições à aplicação pelo `TestClient` do FastAPI e conferem
-  status, corpo e cabeçalhos da resposta, ou gravam no PostgreSQL de verdade para conferir
-  as regras do banco.
+- `unit/`: chamam as funções direto, sem HTTP, servidor nem banco. As regras de negócio
+  ficam em funções puras (`backend/app/services/regras.py`), testadas aqui com datas
+  escolhidas, inclusive nas bordas (o dia da data prevista e o dia seguinte).
+- `integration/`: fazem requisições à API pelo `TestClient` do FastAPI, com PostgreSQL de
+  verdade, e conferem status, corpo e mensagens. Há um arquivo por recurso e um com o fluxo
+  completo da fila de reserva.
 
 As fixtures ficam em `backend/tests/conftest.py`:
 
-- `client`: o `TestClient` da aplicação.
+- `client`: o `TestClient` sem banco, usado pelos testes de `/health`.
 - `db_session`: aplica as migrations uma vez por execução e roda cada teste dentro de uma
-  transação desfeita no final, então nenhum dado fica no banco. Os testes de `/health` não
-  usam essa fixture e passam sem banco.
+  transação desfeita no final, então nenhum dado fica no banco.
+- `api`: o `TestClient` usando a `db_session` e um relógio controlado pelo teste. A data
+  de "hoje" começa fixa e o teste avança os dias, então nenhum teste depende da data real.
+
+Na máquina local os testes usam o banco `acervo_teste`, criado pelo `make test` no mesmo
+PostgreSQL do compose. Assim os dados do `make seed` não interferem nos testes.
 
 ```bash
-make test               # sobe o banco e roda todos os testes
+make test               # cria o banco de testes, se faltar, e roda todos os testes
 make test-unit          # só os unitários
-make test-integration   # só os de integração (o banco precisa estar no ar: make db-up)
+make test-integration   # só os de integração (o banco precisa existir: make db-teste)
 ```
-
-Os testes das regras de negócio entram na Etapa 5.
 
 ## Integração contínua
 
@@ -179,7 +230,7 @@ $ make help
   format             Formata o código com ruff format
   format-check       Verifica a formatação sem alterar os arquivos
   check              Roda lint e verificação de formatação
-  test               Sobe o banco e roda todos os testes do projeto
+  test               Sobe o banco de testes e roda todos os testes do projeto
   test-unit          Roda só os testes unitários do backend
   test-integration   Roda só os testes de integração do backend (precisam do banco no ar)
   clean              Remove caches do Python, do ruff e do pytest
@@ -194,6 +245,8 @@ $ make help
   api-shell          Abre um shell no container do backend
   reset              Derruba os serviços e APAGA o volume com todos os dados do banco
   db-up              Sobe só o banco e espera ele ficar saudável
+  db-teste           Cria o banco dos testes locais no PostgreSQL do compose, se ainda não existir
+  seed               Cadastra livros e leitores de exemplo no container (só se o banco estiver vazio)
   migrate            Aplica as migrations pendentes no banco do compose
   migrate-down       Desfaz a última migration aplicada
   migration          Gera uma migration por autogenerate (MSG="descricao")
