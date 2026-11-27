@@ -1,0 +1,3 @@
+# O Biome formata com fim de linha LF. Sem isto, o checkout no Windows (core.autocrlf)
+# grava CRLF no disco e o make front-check falha em todos os arquivos
+* text=auto eol=lf
