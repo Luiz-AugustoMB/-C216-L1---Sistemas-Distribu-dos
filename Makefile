@@ -7,6 +7,15 @@ DB_PORT ?= 5432
 DATABASE_URL ?= postgresql+psycopg://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@localhost:$(DB_PORT)/$(POSTGRES_DB)
 export DATABASE_URL
 
+# Os testes locais usam um banco separado no mesmo PostgreSQL, para não esbarrar nos dados
+# do make seed. No CI a DATABASE_URL do workflow já aponta para um banco descartável
+TEST_DB := $(POSTGRES_DB)_teste
+ifeq ($(origin DATABASE_URL),environment)
+TEST_DATABASE_URL ?= $(DATABASE_URL)
+else
+TEST_DATABASE_URL ?= postgresql+psycopg://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@localhost:$(DB_PORT)/$(TEST_DB)
+endif
+
 BACKEND_DIR := backend
 POETRY := poetry
 PYTEST := $(POETRY) run pytest
@@ -21,7 +30,7 @@ SERVICE ?=
 
 .PHONY: help install run lint format format-check check test test-unit test-integration clean \
 	env up down build restart ps logs db-shell api-shell reset \
-	db-up migrate migrate-down migration
+	db-up db-teste migrate migrate-down migration seed
 
 help: ## Lista os comandos disponíveis
 	@grep -E '^[a-zA-Z_-]+:.*## ' "$(firstword $(MAKEFILE_LIST))" | \
@@ -44,15 +53,15 @@ format-check: ## Verifica a formatação sem alterar os arquivos
 
 check: lint format-check ## Roda lint e verificação de formatação
 
-test: db-up ## Sobe o banco e roda todos os testes do projeto
-	cd "$(BACKEND_DIR)" && $(PYTEST)
+test: db-teste ## Sobe o banco de testes e roda todos os testes do projeto
+	cd "$(BACKEND_DIR)" && DATABASE_URL="$(TEST_DATABASE_URL)" $(PYTEST)
 
 test-unit: ## Roda só os testes unitários do backend
-	cd "$(BACKEND_DIR)" && $(PYTEST) tests/unit
+	cd "$(BACKEND_DIR)" && DATABASE_URL="$(TEST_DATABASE_URL)" $(PYTEST) tests/unit
 
-# Não sobe o banco: no CI ele vem do service do GitHub Actions. Localmente, rode make db-up antes
+# Não sobe o banco: no CI ele vem do service do GitHub Actions. Localmente, rode make db-teste antes
 test-integration: ## Roda só os testes de integração do backend (precisam do banco no ar)
-	cd "$(BACKEND_DIR)" && $(PYTEST) tests/integration
+	cd "$(BACKEND_DIR)" && DATABASE_URL="$(TEST_DATABASE_URL)" $(PYTEST) tests/integration
 
 clean: ## Remove caches do Python, do ruff e do pytest
 	find "$(BACKEND_DIR)" -path "$(BACKEND_DIR)/.venv" -prune -o -type d -name __pycache__ -exec rm -rf {} +
@@ -92,6 +101,12 @@ reset: ## Derruba os serviços e APAGA o volume com todos os dados do banco
 
 db-up: ## Sobe só o banco e espera ele ficar saudável
 	$(COMPOSE) up -d --wait db
+
+db-teste: db-up ## Cria o banco dos testes locais no PostgreSQL do compose, se ainda não existir
+	$(COMPOSE) exec -T db sh -c 'psql -U "$$POSTGRES_USER" -d postgres -lqt | cut -d "|" -f 1 | grep -qw "$(TEST_DB)" || createdb -U "$$POSTGRES_USER" "$(TEST_DB)"'
+
+seed: ## Cadastra livros e leitores de exemplo no container (só se o banco estiver vazio)
+	$(COMPOSE) exec backend python -m app.seed
 
 migrate: db-up ## Aplica as migrations pendentes no banco do compose
 	cd "$(BACKEND_DIR)" && $(ALEMBIC) upgrade head
