@@ -1,0 +1,8 @@
+@import "tailwindcss";
+
+/* Azul institucional do Inatel (--brand-inatel do site inatel.br) e o tom seguinte da
+   mesma escala para o hover. É o único lugar onde a cor é definida */
+@theme {
+	--color-inatel: #065dc4;
+	--color-inatel-escuro: #044895;
+}
