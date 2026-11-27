@@ -1,13 +1,24 @@
 from fastapi import FastAPI, Request, status
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import IntegrityError
 
 from app.api.routes import emprestimos, health, leitores, livros, painel, reservas
+from app.core.config import get_settings
 from app.core.erros import RecursoNaoEncontrado, RegraDeNegocioViolada
 
 app = FastAPI(
     title="Acervo",
     description="Empréstimos e fila de reserva dos livros técnicos da sala de estudos.",
+)
+
+# Só as origens configuradas, nunca "*": o navegador bloqueia qualquer outro site que
+# tente chamar a API
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=get_settings().origens_cors,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+    allow_headers=["Content-Type"],
 )
 
 

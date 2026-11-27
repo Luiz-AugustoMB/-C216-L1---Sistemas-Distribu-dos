@@ -16,8 +16,17 @@ class Settings(BaseSettings):
     prazo_retirada_reserva_dias: int = 2
     fuso_horario: str = "America/Sao_Paulo"
 
+    # Origens do frontend liberadas no CORS, separadas por vírgula. Texto simples em vez de
+    # lista porque o pydantic-settings só converte lista a partir de JSON
+    cors_origins: str = "http://localhost:5173"
+
+    @property
+    def origens_cors(self) -> list[str]:
+        return [origem.strip() for origem in self.cors_origins.split(",") if origem.strip()]
+
 
 @lru_cache
 def get_settings() -> Settings:
-    # Lido só na primeira chamada: importar a aplicação não exige a variável definida
+    # Lido uma vez e reaproveitado. O main.py lê na montagem do app por causa do CORS, então
+    # a DATABASE_URL precisa existir no ambiente, mas nenhuma conexão é aberta nesse momento
     return Settings()
