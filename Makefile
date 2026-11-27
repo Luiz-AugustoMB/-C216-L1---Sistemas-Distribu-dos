@@ -17,6 +17,8 @@ TEST_DATABASE_URL ?= postgresql+psycopg://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@
 endif
 
 BACKEND_DIR := backend
+FRONTEND_DIR := frontend
+NPM := npm
 POETRY := poetry
 PYTEST := $(POETRY) run pytest
 ALEMBIC := $(POETRY) run alembic
@@ -30,7 +32,8 @@ SERVICE ?=
 
 .PHONY: help install run lint format format-check check test test-unit test-integration clean \
 	env up down build restart ps logs db-shell api-shell reset \
-	db-up db-teste migrate migrate-down migration seed
+	db-up db-teste migrate migrate-down migration seed \
+	front-install front-dev front-lint front-format front-check front-test front-build
 
 help: ## Lista os comandos disponíveis
 	@grep -E '^[a-zA-Z_-]+:.*## ' "$(firstword $(MAKEFILE_LIST))" | \
@@ -53,8 +56,9 @@ format-check: ## Verifica a formatação sem alterar os arquivos
 
 check: lint format-check ## Roda lint e verificação de formatação
 
-test: db-teste ## Sobe o banco de testes e roda todos os testes do projeto
+test: db-teste ## Sobe o banco de testes e roda todos os testes do backend e do frontend
 	cd "$(BACKEND_DIR)" && DATABASE_URL="$(TEST_DATABASE_URL)" $(PYTEST)
+	cd "$(FRONTEND_DIR)" && $(NPM) test
 
 test-unit: ## Roda só os testes unitários do backend
 	cd "$(BACKEND_DIR)" && DATABASE_URL="$(TEST_DATABASE_URL)" $(PYTEST) tests/unit
@@ -107,6 +111,28 @@ db-teste: db-up ## Cria o banco dos testes locais no PostgreSQL do compose, se a
 
 seed: ## Cadastra livros e leitores de exemplo no container (só se o banco estiver vazio)
 	$(COMPOSE) exec backend python -m app.seed
+
+# npm ci instala exatamente o que está no package-lock.json, igual ao CI
+front-install: ## Instala as dependências do frontend (npm ci)
+	cd "$(FRONTEND_DIR)" && $(NPM) ci
+
+front-dev: ## Sobe o frontend em desenvolvimento em http://localhost:5173
+	cd "$(FRONTEND_DIR)" && $(NPM) run dev
+
+front-lint: ## Verifica o código do frontend com o Biome
+	cd "$(FRONTEND_DIR)" && $(NPM) run lint
+
+front-format: ## Formata o código do frontend com o Biome
+	cd "$(FRONTEND_DIR)" && $(NPM) run format
+
+front-check: ## Roda lint, formatação e ordem dos imports do frontend sem alterar arquivos
+	cd "$(FRONTEND_DIR)" && $(NPM) run check
+
+front-test: ## Roda os testes do frontend (Vitest)
+	cd "$(FRONTEND_DIR)" && $(NPM) test
+
+front-build: ## Gera o build de produção do frontend em frontend/dist
+	cd "$(FRONTEND_DIR)" && $(NPM) run build
 
 migrate: db-up ## Aplica as migrations pendentes no banco do compose
 	cd "$(BACKEND_DIR)" && $(ALEMBIC) upgrade head
